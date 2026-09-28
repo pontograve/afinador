@@ -1,4 +1,4 @@
-const CACHE_NAME = "afinador-pontograve-v7";
+const CACHE_NAME = "afinador-pontograve-v8";
 const ASSETS = [
   "./",
   "./index.html",
@@ -23,6 +23,10 @@ const ASSETS = [
   "./js/pentatonicas.js",
   "./js/campo-harmonico.js",
   "./icons/icon.svg",
+  "./icons/icon-180.png",
+  "./icons/icon-192.png",
+  "./icons/icon-512.png",
+  "./icons/icon-maskable-512.png",
   "./icons/logo-fundo-escuro.svg",
   "./icons/logo-fundo-claro.svg",
 ];
@@ -42,22 +46,45 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// Busca na rede e guarda a cópia nova (para a próxima vez); falha em silêncio quando está offline
+function atualizar(request) {
+  return fetch(request)
+    .then((response) => {
+      if (response.ok && response.type === "basic") {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+      }
+      return response;
+    })
+    .catch(() => undefined);
+}
+
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-  // Faixas de áudio: vêm direto da rede (arquivos grandes e pedidos em partes pelo player)
-  if (new URL(event.request.url).pathname.endsWith(".mp3")) return;
+  const { request } = event;
+  if (request.method !== "GET") return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;          // outros sites: direto da rede
+  if (url.pathname.endsWith(".mp3")) return;                // áudio: direto da rede
+
+  // Páginas: abre a cópia guardada na hora (mesmo com ?ritmo=… no endereço) e atualiza em segundo plano.
+  // Sem cópia e sem internet, abre o afinador (index.html).
+  if (request.mode === "navigate") {
+    event.respondWith(
+      caches.match(request, { ignoreSearch: true }).then((cached) => {
+        const rede = atualizar(request);
+        if (cached) { event.waitUntil(rede); return cached; }
+        return rede.then((r) => r || caches.match("./index.html"));
+      })
+    );
+    return;
+  }
+
+  // Arquivos do app (CSS, JS, ícones): cópia guardada na hora + atualização em segundo plano
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((response) => {
-          if (response.ok && response.type === "basic") {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return response;
-        })
-        .catch(() => cached);
+    caches.match(request).then((cached) => {
+      const rede = atualizar(request);
+      if (cached) { event.waitUntil(rede); return cached; }
+      return rede.then((r) => r || new Response("", { status: 504, statusText: "Offline" }));
     })
   );
 });
