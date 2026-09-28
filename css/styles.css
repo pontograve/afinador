@@ -387,7 +387,15 @@ a.icon-btn {
 .topbar h1 { flex-shrink: 0; }
 .topbar > div { flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
 html, body { overflow-x: hidden; }
-@media (max-width: 440px) { .topbar .install-txt { display: none; } .topbar .install-btn { padding: 6px 9px; font-size: 0.95rem; } .topbar .icon-btn { font-size: 1.05rem; padding: 6px 4px; } .topbar .marca { height: 30px; } }
+@media (max-width: 440px) { .topbar .install-txt { display: none; } .topbar .install-btn { min-width: 40px; min-height: 40px; padding: 6px 10px; font-size: 1.1rem; } .topbar .icon-btn { font-size: 1.05rem; padding: 6px 4px; } .topbar .marca { height: 30px; } }
+
+/* Faixa de instalação (aparece para quem ainda não instalou; pode ser fechada) */
+.install-banner { display: flex; align-items: center; gap: 10px; margin: 8px 12px 0; padding: 10px 10px 10px 14px; border: 1px solid var(--accent); border-radius: 14px; background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
+.install-banner[hidden] { display: none; }
+.install-banner-txt { flex: 1; font-size: 0.9rem; line-height: 1.35; }
+.install-banner-btn { min-height: 44px; padding: 10px 18px; font-size: 0.95rem; white-space: nowrap; }
+.install-banner-close { flex: none; width: 36px; height: 36px; border: none; background: transparent; color: var(--text-dim); font-size: 1.4rem; line-height: 1; border-radius: 50%; cursor: pointer; }
+.install-banner-close:hover { background: color-mix(in srgb, var(--text) 10%, transparent); }
 
 .rhythm-select { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rhythm-chip { overflow-wrap: normal; }

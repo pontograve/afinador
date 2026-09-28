@@ -142,6 +142,9 @@
     installPrompt = e;
     document.getElementById("btn-install-now").hidden = false;
   });
+  const BANNER_KEY = "afinador-banner-fechado-em";
+  const guardado = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 
   function showInstallTab(os) {
     document.querySelectorAll("#install-tabs button").forEach((b) => b.classList.toggle("active", b.dataset.os === os));
@@ -151,11 +154,28 @@
   function initInstall() {
     const standalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone;
     const btn = document.getElementById("btn-install");
-    if (standalone) { btn.hidden = true; return; }
+    const banner = document.getElementById("install-banner");
+    if (standalone) { btn.hidden = true; banner.hidden = true; return; }
     const ua = navigator.userAgent;
     showInstallTab(/iPhone|iPad|iPod/i.test(ua) ? "iphone" : /Android/i.test(ua) ? "android" : "pc");
     const sheet = document.getElementById("install-sheet");
-    btn.addEventListener("click", () => (sheet.hidden = false));
+    // Um toque: onde o navegador permite (Android/Chrome/Edge), abre a instalação do sistema direto;
+    // no iPhone, que não permite, mostra o passo a passo
+    async function instalar() {
+      if (installPrompt) {
+        installPrompt.prompt();
+        await installPrompt.userChoice;
+        installPrompt = null;
+        return;
+      }
+      sheet.hidden = false;
+    }
+    btn.addEventListener("click", instalar);
+    // Faixa de instalação: aparece de novo 7 dias depois de fechada
+    const fechadoEm = Number(guardado(BANNER_KEY) || 0);
+    banner.hidden = Date.now() - fechadoEm < 7 * 24 * 3600 * 1000;
+    document.getElementById("btn-banner-install").addEventListener("click", instalar);
+    document.getElementById("btn-banner-close").addEventListener("click", () => { banner.hidden = true; guardar(BANNER_KEY, String(Date.now())); });
     document.getElementById("btn-close-install").addEventListener("click", () => (sheet.hidden = true));
     document.getElementById("install-backdrop").addEventListener("click", () => (sheet.hidden = true));
     document.querySelectorAll("#install-tabs button").forEach((b) => b.addEventListener("click", () => showInstallTab(b.dataset.os)));
@@ -166,7 +186,7 @@
       installPrompt = null;
       sheet.hidden = true;
     });
-    window.addEventListener("appinstalled", () => { btn.hidden = true; sheet.hidden = true; });
+    window.addEventListener("appinstalled", () => { btn.hidden = true; sheet.hidden = true; banner.hidden = true; });
   }
 
   function loadSettings() {
