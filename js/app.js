@@ -174,8 +174,9 @@
     // Faixa de instalação: aparece de novo 7 dias depois de fechada
     const fechadoEm = Number(guardado(BANNER_KEY) || 0);
     banner.hidden = Date.now() - fechadoEm < 7 * 24 * 3600 * 1000;
+    btn.hidden = !banner.hidden;   // um botão de instalar por vez: com a faixa visível, o do topo some
     document.getElementById("btn-banner-install").addEventListener("click", instalar);
-    document.getElementById("btn-banner-close").addEventListener("click", () => { banner.hidden = true; guardar(BANNER_KEY, String(Date.now())); });
+    document.getElementById("btn-banner-close").addEventListener("click", () => { banner.hidden = true; btn.hidden = false; guardar(BANNER_KEY, String(Date.now())); });
     document.getElementById("btn-close-install").addEventListener("click", () => (sheet.hidden = true));
     document.getElementById("install-backdrop").addEventListener("click", () => (sheet.hidden = true));
     document.querySelectorAll("#install-tabs button").forEach((b) => b.addEventListener("click", () => showInstallTab(b.dataset.os)));
