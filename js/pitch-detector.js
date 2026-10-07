@@ -48,12 +48,18 @@ const PitchDetector = (() => {
     analyser = null;
   }
 
-  function loop() {
+  // A autocorrelação é pesada (2048 × 1024 contas): 20 vezes por segundo basta para o ponteiro
+  // e deixa o celular livre para o metrônomo não atrasar.
+  const INTERVALO_MS = 50;
+  let ultimo = 0;
+  function loop(agora) {
     if (!running) return;
+    rafId = requestAnimationFrame(loop);
+    if (agora && agora - ultimo < INTERVALO_MS) return;
+    ultimo = agora || 0;
     analyser.getFloatTimeDomainData(buffer);
     const result = autoCorrelate(buffer, audioCtx.sampleRate);
     if (onUpdate) onUpdate(result);
-    rafId = requestAnimationFrame(loop);
   }
 
   function autoCorrelate(buf, sampleRate) {

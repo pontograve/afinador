@@ -60,8 +60,16 @@
     UI.litBeatDot(stepIndex);
   }
 
-  function togglePlay() {
+  let ligando = false;
+  async function togglePlay() {
+    if (ligando) return;   // dois toques rápidos não abrem dois metrônomos
     const ctx = ensureAudioContext();
+    // no celular o áudio começa "suspenso": espera ligar antes de marcar o tempo da 1ª batida
+    if (!state.playing && ctx.state !== "running") {
+      ligando = true;
+      try { await ctx.resume(); } catch (e) {}
+      ligando = false;
+    }
     if (state.playing) {
       MetronomeEngine.stop();
       state.playing = false;
