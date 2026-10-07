@@ -27,7 +27,10 @@
 
   function ensureAudioContext() {
     if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // "playback": buffer de áudio maior; o metrônomo já agenda com antecedência, então isso não
+      // atrasa nada e evita os cortes no fone Bluetooth
+      const AC = window.AudioContext || window.webkitAudioContext;
+      try { audioCtx = new AC({ latencyHint: "playback" }); } catch (e) { audioCtx = new AC(); }
       SoundBank.init(audioCtx);
       SoundBank.setVolume(state.volume);
     }

@@ -41,7 +41,9 @@ const MetronomeEngine = (() => {
       SoundBank.play(hit.sound, time, hit.vol);
     }
     if (onStep) {
-      const delayMs = Math.max(0, (time - audioCtx.currentTime) * 1000);
+      // a bolinha acende quando o som chega ao ouvido: soma o atraso da saída (no Bluetooth, 0,1 a 0,3 s)
+      const atraso = (audioCtx.outputLatency || 0) + (audioCtx.baseLatency || 0);
+      const delayMs = Math.max(0, (time + atraso - audioCtx.currentTime) * 1000);
       setTimeout(() => {
         if (playing) onStep(stepIndex, pattern.steps.length);
       }, delayMs);
