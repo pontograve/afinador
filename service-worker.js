@@ -1,4 +1,4 @@
-const CACHE_NAME = "afinador-pontograve-v14";
+const CACHE_NAME = "afinador-pontograve-v15";
 const ASSETS = [
   "./",
   "./index.html",
@@ -27,8 +27,8 @@ const ASSETS = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
-  "./icons/logo-fundo-escuro.svg?v=2",
-  "./icons/logo-fundo-claro.svg?v=2",
+  "./icons/logo-fundo-escuro.svg?v=3",
+  "./icons/logo-fundo-claro.svg?v=3",
 ];
 
 self.addEventListener("install", (event) => {
