@@ -4,15 +4,22 @@
 
 const PitchDetector = (() => {
   const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-  const RMS_THRESHOLD = 0.01;
-  const MIN_FREQ = 40;
-  const MAX_FREQ = 2000;
+  // Menos sensível a barulho (10/2026): portão de volume que se adapta ao ruído do ambiente,
+  // filtro na faixa do baixo, exigência de nota "limpa" (clareza) e mediana das últimas leituras.
+  const RMS_MIN = 0.015;        // volume mínimo absoluto
+  const PORTAO_X_RUIDO = 3;     // a nota precisa estar 3× acima do ruído medido do ambiente
+  const CLAREZA_MIN = 0.88;     // 0 a 1: quanto o sinal se parece com uma nota periódica (voz e barulho ficam abaixo)
+  const MIN_FREQ = 28;          // Si grave do baixo de 5 cordas ≈ 30,9 Hz
+  const MAX_FREQ = 1000;        // harmônicos e notas agudas do baixo cabem; o resto é ruído
+  let ruido = 0.005;            // média do ruído quando não há nota
+  const ultimas = [];           // últimas frequências válidas (mediana)
 
   let audioCtx = null;
   let analyser = null;
   let mediaStream = null;
   let source = null;
   let buffer = null;
+  let metade = null;   // a janela reduzida pela metade (média de 2 em 2): mesma conta de antes, janela 2× mais longa
   let rafId = null;
   let onUpdate = null;
   let running = false;
@@ -30,9 +37,14 @@ const PitchDetector = (() => {
     });
     source = audioCtx.createMediaStreamSource(mediaStream);
     analyser = audioCtx.createAnalyser();
-    analyser.fftSize = 2048;
-    source.connect(analyser);
+    analyser.fftSize = 4096;   // janela de ~85 ms: o Mi grave (41 Hz) cabe com folga e a medida fica precisa
+    // só a faixa do baixo chega ao detector: corta ronco abaixo de ~25 Hz e chiado acima de ~1,2 kHz
+    const passaAlta = audioCtx.createBiquadFilter(); passaAlta.type = 'highpass'; passaAlta.frequency.value = 25;
+    const passaBaixa = audioCtx.createBiquadFilter(); passaBaixa.type = 'lowpass'; passaBaixa.frequency.value = 1200;
+    source.connect(passaAlta).connect(passaBaixa).connect(analyser);
+    ruido = 0.005; ultimas.length = 0;
     buffer = new Float32Array(analyser.fftSize);
+    metade = new Float32Array(analyser.fftSize / 2);
     running = true;
     loop();
   }
@@ -58,7 +70,15 @@ const PitchDetector = (() => {
     if (agora && agora - ultimo < INTERVALO_MS) return;
     ultimo = agora || 0;
     analyser.getFloatTimeDomainData(buffer);
-    const result = autoCorrelate(buffer, audioCtx.sampleRate);
+    for (let i = 0; i < metade.length; i++) metade[i] = (buffer[2 * i] + buffer[2 * i + 1]) / 2;
+    const bruto = autoCorrelate(metade, audioCtx.sampleRate / 2);
+    let result = null;
+    if (bruto) {
+      // mediana das últimas 5 leituras: um pico solto de barulho não mexe o ponteiro
+      ultimas.push(bruto); if (ultimas.length > 5) ultimas.shift();
+      const ord = [...ultimas].sort((a, b) => a - b);
+      if (ultimas.length >= 3) result = freqToNote(ord[Math.floor(ord.length / 2)]);
+    } else if (ultimas.length) ultimas.shift();   // silêncio: esvazia aos poucos
     if (onUpdate) onUpdate(result);
   }
 
@@ -68,7 +88,8 @@ const PitchDetector = (() => {
     let rms = 0;
     for (let i = 0; i < size; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / size);
-    if (rms < RMS_THRESHOLD) return null;
+    // portão adaptativo: aprende o ruído do ambiente enquanto ninguém toca
+    if (rms < Math.max(RMS_MIN, ruido * PORTAO_X_RUIDO)) { ruido = ruido * 0.95 + rms * 0.05; return null; }
 
     const threshold = 0.2;
     let r1 = 0;
@@ -109,6 +130,11 @@ const PitchDetector = (() => {
       }
     }
     if (maxPos <= 0) return null;
+    // clareza: correlação normalizada no período encontrado (nota limpa ≈ 1; voz, ruído e batidas ficam abaixo).
+    // Normaliza pela energia dos dois trechos que se sobrepõem, senão as notas graves (período longo) sairiam sempre baixas.
+    let e1 = 0, e2 = 0;
+    for (let j = 0; j < n - maxPos; j++) { e1 += trimmed[j] * trimmed[j]; e2 += trimmed[j + maxPos] * trimmed[j + maxPos]; }
+    if (e1 <= 0 || e2 <= 0 || maxVal / Math.sqrt(e1 * e2) < CLAREZA_MIN) return null;
 
     let t0 = maxPos;
     const x1 = c[t0 - 1] || 0;
@@ -121,7 +147,7 @@ const PitchDetector = (() => {
     const freq = sampleRate / t0;
     if (!isFinite(freq) || freq < MIN_FREQ || freq > MAX_FREQ) return null;
 
-    return freqToNote(freq);
+    return freq;
   }
 
   function freqToNote(freq) {
