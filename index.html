@@ -150,7 +150,7 @@
     const el = document.getElementById('versao-app'); if (!el) return;
     try {
       const v = (await caches.keys()).map(k => (k.match(/^afinador-pontograve-v(\d+)$/) || [])[1]).filter(Boolean).map(Number).sort((a, b) => b - a)[0];
-      el.textContent = v ? 'Versão ' + v + '.0' + (v === 1 ? ' · lançada em 03/11/2026' : '') : 'Versão do app: online (sem instalar)';
+      el.textContent = v ? 'Versão ' + v + '.0' : 'Versão do app: online (sem instalar)';
     } catch (e) { el.textContent = 'Versão do app: online'; }
   })();
 </script>
