@@ -6,12 +6,12 @@ const PitchDetector = (() => {
   const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   // Menos sensível a barulho (10/2026): portão de volume que se adapta ao ruído do ambiente,
   // filtro na faixa do baixo, exigência de nota "limpa" (clareza) e mediana das últimas leituras.
-  const RMS_MIN = 0.015;        // volume mínimo absoluto
-  const PORTAO_X_RUIDO = 3;     // a nota precisa estar 3× acima do ruído medido do ambiente
-  const CLAREZA_MIN = 0.88;     // 0 a 1: quanto o sinal se parece com uma nota periódica (voz e barulho ficam abaixo)
+  const RMS_MIN = 0.005;        // volume mínimo absoluto (baixo desplugado no microfone do celular é fraco)
+  const PORTAO_X_RUIDO = 2;     // a nota precisa estar 2× acima do ruído medido do ambiente
+  const CLAREZA_MIN = 0.72;     // 0 a 1: quanto o sinal se parece com uma nota periódica (voz e barulho ficam abaixo)
   const MIN_FREQ = 28;          // Si grave do baixo de 5 cordas ≈ 30,9 Hz
   const MAX_FREQ = 1000;        // harmônicos e notas agudas do baixo cabem; o resto é ruído
-  let ruido = 0.005;            // média do ruído quando não há nota
+  let ruido = 0.0015;           // média do ruído quando não há nota (começa baixo: o app aprende a sala em ~1 s)
   const ultimas = [];           // últimas frequências válidas (mediana)
 
   let audioCtx = null;
@@ -42,7 +42,7 @@ const PitchDetector = (() => {
     const passaAlta = audioCtx.createBiquadFilter(); passaAlta.type = 'highpass'; passaAlta.frequency.value = 25;
     const passaBaixa = audioCtx.createBiquadFilter(); passaBaixa.type = 'lowpass'; passaBaixa.frequency.value = 1200;
     source.connect(passaAlta).connect(passaBaixa).connect(analyser);
-    ruido = 0.005; ultimas.length = 0;
+    ruido = 0.0015; ultimas.length = 0;
     buffer = new Float32Array(analyser.fftSize);
     metade = new Float32Array(analyser.fftSize / 2);
     running = true;
