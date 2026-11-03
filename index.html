@@ -131,6 +131,7 @@
         <span>Tema escuro</span>
         <input type="checkbox" id="theme-toggle" checked />
       </label>
+      <p class="versao-app" id="versao-app" style="margin:14px 0 4px;font-size:13px;opacity:.6;text-align:center">Versão do app: verificando...</p>
       <button id="btn-close-settings" class="primary-btn">Fechar</button>
     </div>
   </div>
@@ -143,5 +144,15 @@
 <script src="js/pitch-detector.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>
+<script>
+  // versão instalada = número do cache do service worker (afinador-pontograve-vNN); sobe a cada atualização
+  (async () => {
+    const el = document.getElementById('versao-app'); if (!el) return;
+    try {
+      const v = (await caches.keys()).map(k => (k.match(/^afinador-pontograve-v(\d+)$/) || [])[1]).filter(Boolean).map(Number).sort((a, b) => b - a)[0];
+      el.textContent = v ? 'Versão do app: ' + v : 'Versão do app: online (sem instalar)';
+    } catch (e) { el.textContent = 'Versão do app: online'; }
+  })();
+</script>
 </body>
 </html>

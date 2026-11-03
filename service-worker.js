@@ -1,4 +1,4 @@
-const CACHE_NAME = "afinador-pontograve-v18";
+const CACHE_NAME = "afinador-pontograve-v19";
 const ASSETS = [
   "./",
   "./index.html",
