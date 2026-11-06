@@ -6,13 +6,15 @@ const PitchDetector = (() => {
   const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
   // Menos sensível a barulho (10/2026): portão de volume que se adapta ao ruído do ambiente,
   // filtro na faixa do baixo, exigência de nota "limpa" (clareza) e mediana das últimas leituras.
-  const RMS_MIN = 0.005;        // volume mínimo absoluto (baixo desplugado no microfone do celular é fraco)
-  const PORTAO_X_RUIDO = 2;     // a nota precisa estar 2× acima do ruído medido do ambiente
-  const CLAREZA_MIN = 0.72;     // 0 a 1: quanto o sinal se parece com uma nota periódica (voz e barulho ficam abaixo)
+  const RMS_MIN = 0.0015;       // volume mínimo absoluto (baixo desplugado no microfone do celular chega muito fraco)
+  const PORTAO_X_RUIDO = 1.6;   // a nota precisa estar 1,6× acima do ruído medido do ambiente
+  const CLAREZA_MIN = 0.62;     // 0 a 1: quanto o sinal se parece com uma nota periódica (voz e barulho ficam abaixo)
   const MIN_FREQ = 28;          // Si grave do baixo de 5 cordas ≈ 30,9 Hz
   const MAX_FREQ = 1000;        // harmônicos e notas agudas do baixo cabem; o resto é ruído
-  let ruido = 0.0015;           // média do ruído quando não há nota (começa baixo: o app aprende a sala em ~1 s)
+  let ruido = 0.0008;           // média do ruído quando não há nota (começa baixo: o app aprende a sala em ~1 s)
   const ultimas = [];           // últimas frequências válidas (mediana)
+  const SEGURA_MS = 900;        // a corda perde força rápido: o ponteiro mostra a última leitura por quase 1 s
+  let ultimoResultado = null, ultimoQuando = 0;
 
   let audioCtx = null;
   let analyser = null;
@@ -42,7 +44,7 @@ const PitchDetector = (() => {
     const passaAlta = audioCtx.createBiquadFilter(); passaAlta.type = 'highpass'; passaAlta.frequency.value = 25;
     const passaBaixa = audioCtx.createBiquadFilter(); passaBaixa.type = 'lowpass'; passaBaixa.frequency.value = 1200;
     source.connect(passaAlta).connect(passaBaixa).connect(analyser);
-    ruido = 0.0015; ultimas.length = 0;
+    ruido = 0.0008; ultimas.length = 0; ultimoResultado = null;
     buffer = new Float32Array(analyser.fftSize);
     metade = new Float32Array(analyser.fftSize / 2);
     running = true;
@@ -79,6 +81,9 @@ const PitchDetector = (() => {
       const ord = [...ultimas].sort((a, b) => a - b);
       if (ultimas.length >= 3) result = freqToNote(ord[Math.floor(ord.length / 2)]);
     } else if (ultimas.length) ultimas.shift();   // silêncio: esvazia aos poucos
+    const t = agora || performance.now();
+    if (result) { ultimoResultado = result; ultimoQuando = t; }
+    else if (ultimoResultado && t - ultimoQuando < SEGURA_MS) result = ultimoResultado;
     if (onUpdate) onUpdate(result);
   }
 
@@ -89,7 +94,12 @@ const PitchDetector = (() => {
     for (let i = 0; i < size; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / size);
     // portão adaptativo: aprende o ruído do ambiente enquanto ninguém toca
-    if (rms < Math.max(RMS_MIN, ruido * PORTAO_X_RUIDO)) { ruido = ruido * 0.95 + rms * 0.05; return null; }
+    if (rms < Math.max(RMS_MIN, ruido * PORTAO_X_RUIDO)) {
+      // aprende o ruído da sala sem "aprender" a corda: desce rápido quando o som some, sobe bem devagar
+      // (antes subia rápido e uma corda fraca, logo abaixo do portão, era tomada por ruído e nunca mais passava)
+      ruido = rms < ruido ? ruido * 0.8 + rms * 0.2 : ruido * 0.998 + rms * 0.002;
+      return null;
+    }
 
     const threshold = 0.2;
     let r1 = 0;

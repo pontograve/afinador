@@ -1,4 +1,4 @@
-const CACHE_NAME = "afinador-pontograve-v1";   // versão do app (Ajustes mostra "1.0"); lançamento oficial em 03/11/2026, suba 1 a cada atualização
+const CACHE_NAME = "afinador-pontograve-v2";   // versão do app (Ajustes mostra "1.0"); lançamento oficial em 03/11/2026, suba 1 a cada atualização
 const ASSETS = [
   "./",
   "./index.html",
